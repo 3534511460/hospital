@@ -71,7 +71,7 @@ app:
     sign-name: 医院预约系统
   ai:
     provider: deepseek
-    api-key: "sk-698d22f00d7e41ac95294777e46e077f"
+    api-key: ""
     api-url: https://api.deepseek.com/v1
     model: deepseek-chat
     max-tokens: 2000
