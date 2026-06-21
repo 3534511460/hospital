@@ -1,0 +1,9 @@
+# 本地敏感配置（不会提交到Git）
+# 复制此文件为 application-local.yml 并填入真实密钥
+
+app:
+  ai:
+    api-key: "sk-your-deepseek-api-key"
+  sms:
+    access-key: "your-sms-access-key"
+    secret-key: "your-sms-secret-key"

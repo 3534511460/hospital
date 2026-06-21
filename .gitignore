@@ -1,0 +1,31 @@
+# Build output
+backend/target/
+frontend/dist/
+frontend/node_modules/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.trae/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Uploaded files
+backend/uploads/
+backend/runtime/
+
+# Env & Secrets (never commit real keys)
+.env
+*.env.local
+application-local.yml
+backend/src/main/resources/application-local.yml
+
+# Temp
+*.tmp
+/tmp/
