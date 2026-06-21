@@ -22,6 +22,19 @@
       </div>
     </section>
 
+    <section class="queue-board page-w" v-if="queueData.length">
+      <div class="qb-head"><h2>实时叫号</h2><a class="qb-link" @click="$router.push('/queue/board')">大屏 →</a></div>
+      <div class="qb-grid">
+        <div class="qb-card" v-for="q in queueData.slice(0,4)" :key="q.doctorId">
+          <div class="qb-doc">{{ q.doctorName }} <span class="qb-dept">{{ q.departmentName }}</span></div>
+          <div class="qb-now">
+            <span class="qb-num">{{ q.queue&&q.queue.find(x=>x.status===1) ? q.queue.find(x=>x.status===1).queueNumber : '—' }}</span>
+            <span class="qb-name">{{ q.queue&&q.queue.find(x=>x.status===1) ? q.queue.find(x=>x.status===1).patientName+' 就诊中' : '待叫号' }}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="depts page-w">
       <h2>临床科室</h2>
       <div class="dept-grid">
@@ -44,6 +57,23 @@
 </template>
 
 <script setup>
+import { ref,onMounted } from 'vue'
+import request from '../../utils/request'
+
+const queueData=ref([])
+async function fetchQueue(){
+  try{
+    const r=await request.get('/hospital/doctors',{params:{page:1,size:100}})
+    const docs=(r.data&&r.data.records)||r.data||[]
+    for(const d of docs.filter(d=>d.status===1).slice(0,8)){
+      try{
+        const qr=await request.get(`/queue/doctor/${d.userId}/today`)
+        if(qr.data&&qr.data.length) queueData.value.push({doctorId:d.userId,doctorName:d.realName,departmentName:d.departmentName,queue:qr.data})
+      }catch{}
+    }
+  }catch{}
+}
+
 const feats=[
   {i:'📋',t:'全流程线上化',d:'从预约到就诊记录一站式完成'},
   {i:'🎯',t:'精准匹配专家',d:'按科室、疾病精准筛选最适合的医生'},
@@ -54,6 +84,7 @@ const depts=[
   {id:1,n:'内科',i:'🫀'},{id:2,n:'外科',i:'🔬'},{id:3,n:'妇产科',i:'🌸'},
   {id:4,n:'儿科',i:'👶'},{id:5,n:'皮肤科',i:'🔬'},{id:6,n:'眼科',i:'👁'},{id:7,n:'中医科',i:'🌿'}
 ]
+onMounted(fetchQueue)
 </script>
 
 <style scoped>
@@ -70,6 +101,19 @@ const depts=[
 .feat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
 .feat-card { padding: 32px 24px; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); text-align: center; transition: box-shadow .2s; }
 .feat-card:hover { box-shadow: var(--shadow-md); }
+
+.queue-board { padding: 40px 0; }
+.qb-head { display:flex;justify-content:space-between;align-items:center;margin-bottom:16px; }
+.qb-head h2 { font-size:22px;font-weight:600;color:var(--title); }
+.qb-link { font-size:13px;color:var(--primary);cursor:pointer; }
+.qb-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:12px; }
+.qb-card { padding:20px;background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow); }
+.qb-doc { font-size:14px;font-weight:600;color:var(--title);margin-bottom:10px; }
+.qb-dept { font-size:11px;color:var(--caption);font-weight:400;margin-left:4px; }
+.qb-now { display:flex;align-items:center;gap:12px; }
+.qb-num { font-size:36px;font-weight:700;color:var(--primary);font-family:var(--serif);line-height:1; }
+.qb-name { font-size:14px;color:var(--body); }
+@media(max-width:768px){ .qb-grid{grid-template-columns:repeat(2,1fr)} }
 .feat-icon { font-size: 28px; margin-bottom: 12px; }
 .feat-card h4 { font-size: 16px; color: var(--title); margin-bottom: 6px; }
 .feat-card p { font-size: 13px; color: var(--caption); }

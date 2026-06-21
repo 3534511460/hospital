@@ -38,6 +38,14 @@ public class ScheduleServiceImpl implements ScheduleService {
             throw BusinessException.badRequest("该时段已存在排班");
         if (schedule.getStatus() == null) schedule.setStatus(1);
         if (schedule.getBookedCount() == null) schedule.setBookedCount(0);
+        // Parse time slot "08:00-09:00" -> start_time, end_time
+        if (schedule.getTimeSlot() != null && schedule.getStartTime() == null) {
+            String[] parts = schedule.getTimeSlot().split("-");
+            if (parts.length == 2) {
+                schedule.setStartTime(java.time.LocalTime.parse(parts[0].trim()));
+                schedule.setEndTime(java.time.LocalTime.parse(parts[1].trim()));
+            }
+        }
         scheduleMapper.insert(schedule);
         return schedule;
     }
@@ -75,5 +83,51 @@ public class ScheduleServiceImpl implements ScheduleService {
          .orderByAsc(DoctorSchedule::getWorkDate)
          .orderByAsc(DoctorSchedule::getStartTime);
         return scheduleMapper.selectList(w);
+    }
+
+    @Override
+    public List<DoctorSchedule> getAllSchedules() {
+        return scheduleMapper.selectList(
+            new LambdaQueryWrapper<DoctorSchedule>()
+                .orderByDesc(DoctorSchedule::getWorkDate)
+                .orderByAsc(DoctorSchedule::getStartTime)
+        );
+    }
+
+    @Override
+    public List<DoctorSchedule> getAllWithDetails() {
+        return scheduleMapper.getAllWithDetails();
+    }
+
+    @Override
+    public List<DoctorSchedule> getWeekSchedules(Long doctorId, LocalDate start, LocalDate end) {
+        return scheduleMapper.getWeekSchedules(doctorId, start, end);
+    }
+
+    @Override
+    @Transactional
+    public int copyLastWeekSchedules(Long doctorId, LocalDate targetMonday) {
+        LocalDate lastMon = targetMonday.minusDays(7);
+        LocalDate lastSun = targetMonday.minusDays(1);
+        LocalDate thisSun = targetMonday.plusDays(6);
+
+        List<DoctorSchedule> lastWeek = scheduleMapper.getWeekSchedules(doctorId, lastMon, lastSun);
+        int count = 0;
+        for (DoctorSchedule s : lastWeek) {
+            LocalDate newDate = s.getWorkDate().plusDays(java.time.temporal.ChronoUnit.DAYS.between(lastMon, targetMonday));
+            s.setId(null);
+            s.setWorkDate(newDate);
+            s.setBookedCount(0);
+            s.setStatus(1);
+            LambdaQueryWrapper<DoctorSchedule> w = new LambdaQueryWrapper<>();
+            w.eq(DoctorSchedule::getDoctorId, s.getDoctorId())
+             .eq(DoctorSchedule::getWorkDate, s.getWorkDate())
+             .eq(DoctorSchedule::getTimeSlot, s.getTimeSlot());
+            if (scheduleMapper.selectCount(w) == 0) {
+                scheduleMapper.insert(s);
+                count++;
+            }
+        }
+        return count;
     }
 }

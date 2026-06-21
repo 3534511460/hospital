@@ -75,7 +75,17 @@ async function startChat(doc){
   const res=await request.post('/chat/sessions',body);sessions.value.unshift(res.data);openExisting(res.data)}catch{}
 }
 async function openExisting(s){currentSession.value=s;showDoctorList.value=false;try{const r=await request.get(`/chat/sessions/${s.id}/messages`);messages.value=r.data||[]}catch{};await nextTick();if(msgBox.value)msgBox.value.scrollTop=msgBox.value.scrollHeight;fetchS()}
-async function sendMsg(){if(!input.value.trim()||!currentSession.value)return;const c=input.value.trim();input.value='';try{if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type:'MESSAGE',sessionId:currentSession.value.id,content:c,msgType:'TEXT'}));else{await request.post(`/chat/sessions/${currentSession.value.id}/messages`,{content:c,msgType:'TEXT'});await openExisting(currentSession.value)}}catch{}}
+async function sendMsg(){
+  if(!input.value.trim()||!currentSession.value) return
+  const c=input.value.trim();input.value=''
+  // Optimistic: show message immediately
+  messages.value.push({id:Date.now(),senderId:myId.value,content:c})
+  await nextTick();if(msgBox.value)msgBox.value.scrollTop=msgBox.value.scrollHeight
+  try{
+    await request.post(`/chat/sessions/${currentSession.value.id}/messages`,{content:c,msgType:'TEXT'})
+    await openExisting(currentSession.value)
+  }catch(e){console.error('send failed',e);messages.value.pop()}
+}
 function connectWs(){const t=localStorage.getItem('token');if(!t)return;ws=new WebSocket(`ws://localhost:8080/ws/chat?token=${t}`);ws.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.type==='MESSAGE'&&d.sessionId===currentSession.value?.id){messages.value.push({id:d.id,senderId:d.senderId,content:d.content});nextTick(()=>{if(msgBox.value)msgBox.value.scrollTop=msgBox.value.scrollHeight})}if(d.type==='MESSAGE')fetchS()}catch{}};ws.onclose=()=>setTimeout(connectWs,3000)}
 onMounted(()=>{fetchD();fetchV();fetchS();connectWs()})
 onUnmounted(()=>{if(ws)ws.close()})

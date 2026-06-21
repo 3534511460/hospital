@@ -13,4 +13,8 @@ public interface ScheduleService {
     void deleteSchedule(Long id);
     void batchCreateSchedules(List<DoctorSchedule> schedules);
     List<DoctorSchedule> getSchedulesByDateRange(Long doctorId, LocalDate start, LocalDate end);
+    List<DoctorSchedule> getAllSchedules();
+    List<DoctorSchedule> getAllWithDetails();
+    int copyLastWeekSchedules(Long doctorId, LocalDate targetMonday);
+    List<DoctorSchedule> getWeekSchedules(Long doctorId, LocalDate start, LocalDate end);
 }

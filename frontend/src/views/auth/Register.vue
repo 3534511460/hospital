@@ -26,12 +26,21 @@ const router=useRouter()
 const f=reactive({username:'',realName:'',phone:'',password:'',cpwd:''})
 const loading=ref(false)
 async function register(){
+  console.log('register clicked')
   if(!f.username||!f.realName||!f.phone||!f.password) return ElMessage.warning('请填写完整信息')
   if(f.password!==f.cpwd) return ElMessage.warning('两次密码不一致')
   if(f.password.length<6) return ElMessage.warning('密码至少6位')
   loading.value=true
-  try{await request.post('/auth/register',{username:f.username,realName:f.realName,phone:f.phone,password:f.password});ElMessage.success('注册成功');router.push('/login')}
-  catch{}finally{loading.value=false}
+  console.log('calling API...')
+  try{
+    await request.post('/auth/register',{username:f.username,realName:f.realName,phone:f.phone,password:f.password})
+    ElMessage.success('注册成功')
+    router.push('/login')
+  }catch(e){
+    console.error('register error:', e)
+  }finally{
+    loading.value=false
+  }
 }
 </script>
 

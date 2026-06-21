@@ -25,7 +25,7 @@ public class TokenFilter implements Filter {
             "/api/v1/auth/reset-password",
             "/api/v1/hospital/announcements",
             "/api/v1/hospital/departments",
-            "/api/v1/hospital/doctors",
+            "/api/v1/hospital/doctors/**",
             "/api/v1/hospital-info/public",
             "/api/v1/file/download/**",
             "/ws/**",

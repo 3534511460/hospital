@@ -8,6 +8,7 @@ import com.hospital.appointment.module.appointment.model.Appointment;
 import com.hospital.appointment.module.appointment.model.DoctorSchedule;
 import com.hospital.appointment.module.appointment.model.NoShowRecord;
 import com.hospital.appointment.module.appointment.service.AppointmentService;
+import com.hospital.appointment.module.appointment.service.QueueService;
 import com.hospital.appointment.module.hospital.mapper.DoctorMapper;
 import com.hospital.appointment.module.hospital.model.Doctor;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final DoctorScheduleMapper scheduleMapper;
     private final NoShowRecordMapper noShowRecordMapper;
     private final DoctorMapper doctorMapper;
+    private final QueueService queueService;
 
     @Override
     @Transactional
@@ -48,7 +50,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (schedule.getBookedCount() >= schedule.getMaxCount()) schedule.setStatus(2);
         scheduleMapper.updateById(schedule);
 
-        Doctor doctor = doctorMapper.selectById(doctorId);
+        Doctor doctor = doctorMapper.selectDetailById(doctorId);
 
         Appointment appointment = new Appointment();
         appointment.setAppointmentNo("APT" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
@@ -64,6 +66,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setStatus(1);
         appointment.setFee(doctor != null ? doctor.getConsultationFee() : null);
         appointmentMapper.insert(appointment);
+        queueService.addToQueue(appointment.getId(), doctorId);
         log.info("预约成功: {} 患者={} 医生={}", appointment.getAppointmentNo(), patientId, doctorId);
         return appointment;
     }

@@ -42,6 +42,13 @@ public class ChatController {
     public R<?> messages(@PathVariable Long id) {
         List<ChatMessage> msgs = messageMapper.findBySessionId(id);
         messageMapper.markAsRead(id, UserContext.getUserId());
+        ChatSession session = sessionMapper.selectById(id);
+        if (session != null) {
+            String role = UserContext.getRole();
+            if ("DOCTOR".equals(role)) session.setUnreadCountDoctor(0);
+            else session.setUnreadCountPatient(0);
+            sessionMapper.updateById(session);
+        }
         return R.ok(msgs);
     }
 
@@ -89,6 +96,11 @@ public class ChatController {
             if (appt.getAppointmentDate().plusDays(7).isBefore(LocalDate.now()))
                 throw BusinessException.badRequest("就诊后7天内可发起咨询");
         }
+
+        // Check existing active session
+        List<ChatSession> existing = sessionMapper.findByPatient(patientId);
+        var already = existing.stream().filter(s -> s.getDoctorId().equals(doctorId) && s.getStatus() == 1).findFirst();
+        if (already.isPresent()) return R.ok(already.get());
 
         ChatSession session = new ChatSession();
         session.setPatientId(patientId);

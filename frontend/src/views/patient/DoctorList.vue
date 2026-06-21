@@ -7,7 +7,7 @@
       <input v-model="keyword" placeholder="搜索医生姓名..." @input="fetch" style="margin-left:auto"/>
     </div>
     <div class="doc-grid" v-loading="loading">
-      <div class="doc-card card" v-for="d in doctors" :key="d.userId" @click="$router.push('/appointment?doctorId='+d.userId+'&doctorName='+d.realName)">
+      <div class="doc-card card" v-for="d in doctors" :key="d.userId" @click="$router.push('/doctor/'+d.userId)">
         <div class="doc-top"><div class="doc-av">{{ (d.realName||'?')[0] }}</div><div><h4>{{ d.realName }} <span class="tag tag-blue">{{ d.title }}</span></h4><p>{{ d.departmentName }}</p></div></div>
         <p class="spec">{{ (d.specialty||'').slice(0,80) }}</p>
         <div class="doc-foot"><span class="star">&#9733; {{ d.avgRating||'5.0' }}</span><span class="fee">&#165;{{ d.consultationFee||0 }}</span><button class="btn btn-primary btn-sm">预约</button></div>

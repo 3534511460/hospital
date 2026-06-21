@@ -8,9 +8,11 @@
         </a>
         <nav class="nav-links" v-if="isLoggedIn">
           <a :class="{ active:$route.path==='/home' }" @click="$router.push('/home')">首页</a>
-          <a :class="{ active:$route.path==='/doctors' }" @click="$router.push('/doctors')">找医生</a>
+          <a v-if="userRole!=='DOCTOR'" :class="{ active:$route.path==='/doctors' }" @click="$router.push('/doctors')">找医生</a>
           <a v-if="userRole==='PATIENT'" :class="{ active:$route.path==='/my-appointments' }" @click="$router.push('/my-appointments')">我的预约</a>
-          <a :class="{ active:$route.path==='/ai' }" @click="$router.push('/ai')">AI导诊</a>
+          <a v-if="userRole!=='DOCTOR'" :class="{ active:$route.path==='/ai' }" @click="$router.push('/ai')">AI导诊</a>
+          <a v-if="userRole==='DOCTOR'" :class="{ active:$route.path==='/schedule' }" @click="$router.push('/schedule')">排班</a>
+          <a v-if="userRole==='DOCTOR'||userRole==='DEPT_ADMIN'" :class="{ active:$route.path==='/queue' }" @click="$router.push('/queue')">叫号</a>
           <a :class="{ active:$route.path==='/chat' }" @click="$router.push('/chat')">问医生</a>
           <a v-if="userRole==='SYS_ADMIN'" :class="{ active:$route.path.startsWith('/admin') }" @click="$router.push('/admin')" style="color:var(--primary)">管理</a>
         </nav>
@@ -38,7 +40,7 @@
     <div class="drawer-bg" v-if="drawer" @click="drawer=false"/>
     <aside class="drawer" :class="{open:drawer}">
       <a class="drawer-close" @click="drawer=false">&times;</a>
-      <nav><a @click="go('/home');drawer=false">首页</a><a @click="go('/doctors');drawer=false">找医生</a><a v-if="userRole==='PATIENT'" @click="go('/my-appointments');drawer=false">我的预约</a><a @click="go('/ai');drawer=false">AI导诊</a><a @click="go('/chat');drawer=false">问医生</a><hr><a v-if="userRole==='SYS_ADMIN'" @click="go('/admin');drawer=false">系统管理</a><a @click="go('/profile');drawer=false">个人中心</a><a @click="logout">退出</a></nav>
+      <nav><a @click="go('/home');drawer=false">首页</a><a v-if="userRole!=='DOCTOR'" @click="go('/doctors');drawer=false">找医生</a><a v-if="userRole==='PATIENT'" @click="go('/my-appointments');drawer=false">我的预约</a><a v-if="userRole!=='DOCTOR'" @click="go('/ai');drawer=false">AI导诊</a><a v-if="userRole==='DOCTOR'" @click="go('/schedule');drawer=false">排班</a><a v-if="userRole==='DOCTOR'||userRole==='DEPT_ADMIN'" @click="go('/queue');drawer=false">叫号</a><a @click="go('/chat');drawer=false">问医生</a><hr><a v-if="userRole==='SYS_ADMIN'" @click="go('/admin');drawer=false">系统管理</a><a @click="go('/profile');drawer=false">个人中心</a><a @click="logout">退出</a></nav>
     </aside>
     <main class="page-main"><router-view/></main>
   </div>
