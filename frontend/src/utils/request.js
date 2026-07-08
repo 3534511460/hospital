@@ -35,14 +35,16 @@ request.interceptors.response.use(
   },
   error => {
     if (error.response) {
-      const { status } = error.response
+      const { status, data } = error.response
       if (status === 401) {
         localStorage.clear()
         window.location.href = '/login'
       } else if (status === 403) {
-        ElMessage.error('没有操作权限')
+        ElMessage.error(data?.msg || '没有操作权限')
+      } else if (status === 400) {
+        ElMessage.error(data?.msg || '请求参数有误')
       } else if (status === 500) {
-        ElMessage.error('服务器内部错误')
+        ElMessage.error(data?.msg || '服务器内部错误')
       }
     } else {
       ElMessage.error('网络连接异常')

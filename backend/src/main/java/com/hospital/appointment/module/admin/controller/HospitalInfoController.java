@@ -16,6 +16,7 @@ public class HospitalInfoController {
     private final HospitalInfoMapper hospitalInfoMapper;
 
     @GetMapping
+    @RequireRole("SYS_ADMIN")
     public R<HospitalInfo> get() {
         var list = hospitalInfoMapper.selectList(null);
         return R.ok(list.isEmpty() ? null : list.get(0));

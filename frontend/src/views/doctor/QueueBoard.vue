@@ -35,7 +35,7 @@
 </template>
 
 <script setup>
-import { ref,onMounted } from 'vue'
+import { ref,onMounted,onUnmounted } from 'vue'
 import request from '../../utils/request'
 
 const today=new Date().toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric',weekday:'long'})
@@ -60,9 +60,9 @@ async function fetch(){
   }catch{}finally{loading.value=false}
 }
 
-onMounted(fetch)
-// Auto refresh every 30s
-setInterval(fetch,30000)
+let timer=null
+onMounted(()=>{fetch();timer=setInterval(fetch,30000)})
+onUnmounted(()=>{if(timer){clearInterval(timer);timer=null}})
 </script>
 
 <style scoped>

@@ -5,6 +5,7 @@ import com.hospital.appointment.module.appointment.model.Appointment;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -34,4 +35,8 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
             "LEFT JOIN department dept ON a.department_id = dept.id " +
             "WHERE a.appointment_no = #{appointmentNo}")
     Appointment findByAppointmentNo(@Param("appointmentNo") String appointmentNo);
+
+    @Update("UPDATE appointment SET status = 3, cancel_time = NOW() " +
+            "WHERE id = #{id} AND status = 1 AND appointment_date > CURDATE()")
+    int cancelAppointmentAtomic(@Param("id") Long id);
 }

@@ -40,15 +40,17 @@ public class ChatController {
 
     @GetMapping("/sessions/{id}/messages")
     public R<?> messages(@PathVariable Long id) {
-        List<ChatMessage> msgs = messageMapper.findBySessionId(id);
-        messageMapper.markAsRead(id, UserContext.getUserId());
+        Long userId = UserContext.getUserId();
         ChatSession session = sessionMapper.selectById(id);
-        if (session != null) {
-            String role = UserContext.getRole();
-            if ("DOCTOR".equals(role)) session.setUnreadCountDoctor(0);
-            else session.setUnreadCountPatient(0);
-            sessionMapper.updateById(session);
-        }
+        if (session == null) throw BusinessException.notFound("会话不存在");
+        requireParticipant(session, userId);
+
+        List<ChatMessage> msgs = messageMapper.findBySessionId(id);
+        messageMapper.markAsRead(id, userId);
+        String role = UserContext.getRole();
+        if ("DOCTOR".equals(role)) session.setUnreadCountDoctor(0);
+        else session.setUnreadCountPatient(0);
+        sessionMapper.updateById(session);
         return R.ok(msgs);
     }
 
@@ -58,8 +60,7 @@ public class ChatController {
         ChatSession session = sessionMapper.selectById(id);
         if (session == null) throw BusinessException.notFound("会话不存在");
         if (session.getStatus() == 0) throw BusinessException.badRequest("会话已关闭");
-        if (!session.getPatientId().equals(senderId) && !session.getDoctorId().equals(senderId))
-            throw BusinessException.forbidden("无权操作");
+        requireParticipant(session, senderId);
 
         ChatMessage msg = new ChatMessage();
         msg.setSessionId(id);
@@ -93,6 +94,10 @@ public class ChatController {
             var appt = appointmentMapper.selectById(appointmentId);
             if (appt == null || appt.getStatus() != 2)
                 throw BusinessException.badRequest("仅就诊完成后可发起咨询");
+            if (!appt.getPatientId().equals(patientId))
+                throw BusinessException.forbidden("无权操作");
+            if (!appt.getDoctorId().equals(doctorId))
+                throw BusinessException.badRequest("预约医生与咨询医生不一致");
             if (appt.getAppointmentDate().plusDays(7).isBefore(LocalDate.now()))
                 throw BusinessException.badRequest("就诊后7天内可发起咨询");
         }
@@ -116,10 +121,17 @@ public class ChatController {
 
     @PutMapping("/sessions/{id}/close")
     public R<Void> closeSession(@PathVariable Long id) {
+        Long userId = UserContext.getUserId();
         ChatSession session = sessionMapper.selectById(id);
         if (session == null) throw BusinessException.notFound("会话不存在");
+        requireParticipant(session, userId);
         session.setStatus(0);
         sessionMapper.updateById(session);
         return R.okMsg("会话已关闭");
+    }
+
+    private void requireParticipant(ChatSession session, Long userId) {
+        if (!session.getPatientId().equals(userId) && !session.getDoctorId().equals(userId))
+            throw BusinessException.forbidden("无权操作");
     }
 }

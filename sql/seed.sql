@@ -30,8 +30,8 @@ INSERT INTO sys_user (username, password, real_name, phone, role, status) VALUES
 ('patient3', '$2a$10$6Bl5PH5wiq2xMS1Ownp4j.YTf73QLukFo.3MSn7S/8TEq4CT7VL3S', '赵大爷', '13900000003', 'PATIENT', 1);
 
 -- 4. 添加科室管理员
-INSERT INTO sys_user (username, password, real_name, phone, role, status) VALUES
-('dept_admin1', '$2a$10$6Bl5PH5wiq2xMS1Ownp4j.YTf73QLukFo.3MSn7S/8TEq4CT7VL3S', '李主任', '13700000001', 'DEPT_ADMIN', 1);
+INSERT INTO sys_user (username, password, real_name, phone, role, status, ext1) VALUES
+('dept_admin1', '$2a$10$6Bl5PH5wiq2xMS1Ownp4j.YTf73QLukFo.3MSn7S/8TEq4CT7VL3S', '李主任', '13700000001', 'DEPT_ADMIN', 1, '1');
 
 -- 5. 医生扩展信息
 INSERT INTO doctor (user_id, department_id, title, specialty, introduction, consultation_fee, avg_rating, rating_count, status) VALUES

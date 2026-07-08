@@ -5,6 +5,7 @@ import com.hospital.appointment.module.appointment.model.DoctorSchedule;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -50,4 +51,16 @@ public interface DoctorScheduleMapper extends BaseMapper<DoctorSchedule> {
             "LEFT JOIN department d ON dc.department_id = d.id " +
             "ORDER BY ds.work_date DESC, ds.start_time")
     List<DoctorSchedule> getAllWithDetails();
+
+    @Update("UPDATE doctor_schedule SET booked_count = booked_count + 1, " +
+            "status = CASE WHEN booked_count + 1 >= max_count THEN 2 ELSE status END, " +
+            "update_time = NOW() " +
+            "WHERE id = #{scheduleId} AND booked_count < max_count AND status = 1 AND work_date >= CURDATE()")
+    int incrementBookedCount(@Param("scheduleId") Long scheduleId);
+
+    @Update("UPDATE doctor_schedule SET booked_count = booked_count - 1, " +
+            "status = CASE WHEN status = 2 AND booked_count - 1 < max_count THEN 1 ELSE status END, " +
+            "update_time = NOW() " +
+            "WHERE id = #{scheduleId} AND booked_count > 0")
+    int decrementBookedCount(@Param("scheduleId") Long scheduleId);
 }

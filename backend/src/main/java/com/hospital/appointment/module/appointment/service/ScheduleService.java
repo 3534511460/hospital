@@ -17,4 +17,6 @@ public interface ScheduleService {
     List<DoctorSchedule> getAllWithDetails();
     int copyLastWeekSchedules(Long doctorId, LocalDate targetMonday);
     List<DoctorSchedule> getWeekSchedules(Long doctorId, LocalDate start, LocalDate end);
+    DoctorSchedule getScheduleById(Long id);
+    List<DoctorSchedule> getSchedulesByDepartment(Long departmentId);
 }

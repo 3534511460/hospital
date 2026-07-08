@@ -52,8 +52,10 @@
 </template>
 
 <script setup>
-import { ref,computed,onMounted,onUnmounted,nextTick } from 'vue'
+import { ref,computed,onMounted,onUnmounted,nextTick,watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import request from '../../utils/request'
+import { unreadChatCount,updateUnread } from '../../utils/chatStore'
 
 const userRole=computed(()=>{const u=localStorage.getItem('user');return u?JSON.parse(u).role:''})
 const myId=computed(()=>{const u=localStorage.getItem('user');return u?JSON.parse(u).userId:0})
@@ -67,7 +69,7 @@ function unread(s){return userRole.value==='DOCTOR'?(s.unreadCountDoctor||0):(s.
 
 async function fetchD(){loading.value=true;try{const r=await request.get('/hospital/doctors',{params:{page:1,size:20}});doctors.value=(r.data?.records||r.data||[])}catch{}finally{loading.value=false}}
 async function fetchV(){try{const r=await request.get('/appointment/my',{params:{status:2}});const seen=new Set();visitedDoctors.value=[];for(const a of(r.data||[])){if(seen.has(a.doctorId))continue;seen.add(a.doctorId);visitedDoctors.value.push({userId:a.doctorId,realName:a.doctorName,departmentName:a.departmentName,lastVisitDate:a.appointmentDate,daysLeft:7-Math.floor((Date.now()-new Date(a.appointmentDate))/86400000)})}}catch{}}
-async function fetchS(){try{const r=await request.get('/chat/sessions');sessions.value=r.data||[]}catch{}}
+async function fetchS(){try{const r=await request.get('/chat/sessions');sessions.value=r.data||[];updateUnread(sessions.value,userRole.value)}catch{}}
 
 async function startChat(doc){
   try{const exist=sessions.value.find(s=>s.doctorId===doc.userId);if(exist){openExisting(exist);return}
@@ -86,7 +88,7 @@ async function sendMsg(){
     await openExisting(currentSession.value)
   }catch(e){console.error('send failed',e);messages.value.pop()}
 }
-function connectWs(){const t=localStorage.getItem('token');if(!t)return;ws=new WebSocket(`ws://localhost:8080/ws/chat?token=${t}`);ws.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.type==='MESSAGE'&&d.sessionId===currentSession.value?.id){messages.value.push({id:d.id,senderId:d.senderId,content:d.content});nextTick(()=>{if(msgBox.value)msgBox.value.scrollTop=msgBox.value.scrollHeight})}if(d.type==='MESSAGE')fetchS()}catch{}};ws.onclose=()=>setTimeout(connectWs,3000)}
+async function connectWs(){try{const res=await request.get('/auth/ws-token');const wsToken=res.data?.wsToken;if(!wsToken)return;const proto=location.protocol==='https:'?'wss':'ws';ws=new WebSocket(`${proto}://${location.host}/ws/chat?token=${wsToken}`);ws.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.type==='MESSAGE'){fetchS();if(d.sessionId===currentSession.value?.id){messages.value.push({id:d.id,senderId:d.senderId,content:d.content});nextTick(()=>{if(msgBox.value)msgBox.value.scrollTop=msgBox.value.scrollHeight})}else{ElMessage({message:'收到新咨询消息',type:'info',duration:3000})}}}catch{}};ws.onclose=()=>setTimeout(connectWs,3000)}catch{setTimeout(connectWs,3000)}}
 onMounted(()=>{fetchD();fetchV();fetchS();connectWs()})
 onUnmounted(()=>{if(ws)ws.close()})
 </script>

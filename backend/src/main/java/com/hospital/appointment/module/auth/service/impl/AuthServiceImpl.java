@@ -31,6 +31,8 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public LoginResponse login(LoginRequest request, String ip, String userAgent) {
+        checkRateLimit("login:" + ip, 10, 60, "登录过于频繁，请稍后再试");
+
         SysUser user = userMapper.selectByUsername(request.getUsername());
         if (user == null) {
             recordLogin(null, request.getUsername(), ip, userAgent, 0, "用户不存在");
@@ -67,6 +69,9 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void register(RegisterRequest request) {
+        checkRateLimit("register:" + request.getUsername(), 3, 3600, "注册过于频繁，请稍后再试");
+
+
         SysUser exist = userMapper.selectByUsername(request.getUsername());
         if (exist != null) throw BusinessException.badRequest("用户名已存在");
         if (request.getPhone() != null) {
@@ -85,6 +90,8 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void sendCode(SendCodeRequest request) {
+        checkRateLimit("sms:" + request.getPhone(), 1, 60, "验证码发送过于频繁，请60秒后再试");
+
         String code = String.valueOf((int) ((Math.random() * 9 + 1) * 100000));
         String redisKey = "sms:code:" + request.getBizType() + ":" + request.getPhone();
         redisTemplate.opsForValue().set(redisKey, code, 5, TimeUnit.MINUTES);
@@ -94,6 +101,9 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
+        checkRateLimit("reset-pwd:" + request.getPhone(), 5, 300, "密码重置尝试过于频繁，请5分钟后再试");
+
+
         String redisKey = "sms:code:RESET_PWD:" + request.getPhone();
         String cachedCode = (String) redisTemplate.opsForValue().get(redisKey);
         if (cachedCode == null) throw BusinessException.badRequest("验证码已过期，请重新获取");
@@ -138,6 +148,25 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public void logout(Long userId) {
         redisTemplate.delete(redisTemplate.keys("refresh:" + userId + ":*"));
+    }
+
+    @Override
+    public String generateWsToken(Long userId) {
+        String wsToken = java.util.UUID.randomUUID().toString().replace("-", "");
+        String redisKey = "ws-token:" + wsToken;
+        redisTemplate.opsForValue().set(redisKey, userId.toString(), 60, TimeUnit.SECONDS);
+        return wsToken;
+    }
+
+    private void checkRateLimit(String key, int maxAttempts, int windowSeconds, String errorMsg) {
+        String redisKey = "rate:" + key;
+        Long count = redisTemplate.opsForValue().increment(redisKey);
+        if (count != null && count == 1) {
+            redisTemplate.expire(redisKey, windowSeconds, TimeUnit.SECONDS);
+        }
+        if (count != null && count > maxAttempts) {
+            throw BusinessException.badRequest(errorMsg);
+        }
     }
 
     private void recordLogin(Long userId, String username, String ip, String ua, int status, String failReason) {

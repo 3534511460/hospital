@@ -48,12 +48,12 @@ async function fetch(){
   finally{loading.value=false}
 }
 async function cancel(id){
-  try{await request.put('/appointment/cancel/'+id);ElMessage.success('已取消');fetch()}catch{}
+  try{await request.put(`/appointment/${id}/cancel`);ElMessage.success('已取消');fetch()}catch{}
 }
-const showEval=ref(false);const evalAptId=ref(null);const evalDoc=ref('');const rating=ref(5);const evalText=ref('')
-function evaluate(a){evalAptId.value=a.id;evalDoc.value=a.doctorName;rating.value=5;evalText.value='';showEval.value=true}
+const showEval=ref(false);const evalAptId=ref(null);const evalDocId=ref(null);const evalDoc=ref('');const rating=ref(5);const evalText=ref('')
+function evaluate(a){evalAptId.value=a.id;evalDocId.value=a.doctorId;evalDoc.value=a.doctorName;rating.value=5;evalText.value='';showEval.value=true}
 async function submitEval(){
-  try{await request.post('/medical/evaluations',{appointmentId:evalAptId.value,doctorId:0,rating:rating.value,content:evalText.value});ElMessage.success('评价成功');showEval.value=false;fetch()}catch{}
+  try{await request.post('/medical/evaluations',{appointmentId:evalAptId.value,doctorId:evalDocId.value,rating:rating.value,content:evalText.value});ElMessage.success('评价成功');showEval.value=false;fetch()}catch{}
 }
 onMounted(fetch)
 </script>

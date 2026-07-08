@@ -8,6 +8,7 @@ import com.hospital.appointment.module.hospital.mapper.DoctorMapper;
 import com.hospital.appointment.module.hospital.model.Doctor;
 import com.hospital.appointment.module.user.mapper.SysUserMapper;
 import com.hospital.appointment.module.user.model.SysUser;
+import com.hospital.appointment.security.UserContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +30,9 @@ public class AdminDoctorController {
     @RequireRole({"SYS_ADMIN", "DEPT_ADMIN"})
     public R<List<Doctor>> list(@RequestParam(required = false) Long departmentId,
                                  @RequestParam(required = false) Integer status) {
+        if ("DEPT_ADMIN".equals(UserContext.getRole())) {
+            departmentId = requireDeptId();
+        }
         List<Doctor> list = doctorMapper.selectWithDetails(departmentId, null);
         if (status != null) list.removeIf(d -> !d.getStatus().equals(status));
         return R.ok(list);
@@ -54,8 +58,11 @@ public class AdminDoctorController {
 
         Doctor doctor = new Doctor();
         doctor.setUserId(user.getId());
-        if (body.get("departmentId") != null)
-            doctor.setDepartmentId(Long.valueOf(body.get("departmentId").toString()));
+        Long deptId = body.get("departmentId") != null ? Long.valueOf(body.get("departmentId").toString()) : null;
+        if ("DEPT_ADMIN".equals(UserContext.getRole())) {
+            deptId = requireDeptId();
+        }
+        doctor.setDepartmentId(deptId);
         if (body.get("title") != null) doctor.setTitle((String) body.get("title"));
         if (body.get("specialty") != null) doctor.setSpecialty((String) body.get("specialty"));
         if (body.get("introduction") != null) doctor.setIntroduction((String) body.get("introduction"));
@@ -74,12 +81,13 @@ public class AdminDoctorController {
     @RequireRole({"SYS_ADMIN", "DEPT_ADMIN"})
     @Log(module = "医生管理", operation = "编辑医生")
     public R<Doctor> update(@PathVariable Long userId, @RequestBody Doctor updateDto) {
-        Doctor doctor = findByUserId(userId);
+        Doctor doctor = requireInDept(userId);
         if (updateDto.getTitle() != null) doctor.setTitle(updateDto.getTitle());
         if (updateDto.getSpecialty() != null) doctor.setSpecialty(updateDto.getSpecialty());
         if (updateDto.getIntroduction() != null) doctor.setIntroduction(updateDto.getIntroduction());
         if (updateDto.getConsultationFee() != null) doctor.setConsultationFee(updateDto.getConsultationFee());
-        if (updateDto.getDepartmentId() != null) doctor.setDepartmentId(updateDto.getDepartmentId());
+        if (updateDto.getDepartmentId() != null && !"DEPT_ADMIN".equals(UserContext.getRole()))
+            doctor.setDepartmentId(updateDto.getDepartmentId());
         doctorMapper.updateById(doctor);
         return R.ok(doctor);
     }
@@ -87,7 +95,7 @@ public class AdminDoctorController {
     @PutMapping("/{userId}/status")
     @RequireRole({"SYS_ADMIN", "DEPT_ADMIN"})
     public R<Void> updateStatus(@PathVariable Long userId, @RequestBody Map<String, Integer> body) {
-        Doctor doctor = findByUserId(userId);
+        Doctor doctor = requireInDept(userId);
         doctor.setStatus(body.get("status"));
         doctorMapper.updateById(doctor);
         return R.okMsg("状态更新成功");
@@ -102,5 +110,21 @@ public class AdminDoctorController {
         doctorMapper.deleteById(doctor.getId());
         userMapper.deleteById(userId);
         return R.okMsg("删除成功");
+    }
+
+    private Long requireDeptId() {
+        Long deptId = UserContext.getDepartmentId();
+        if (deptId == null) throw BusinessException.forbidden("未绑定科室");
+        return deptId;
+    }
+
+    private Doctor requireInDept(Long userId) {
+        Doctor doctor = findByUserId(userId);
+        if ("DEPT_ADMIN".equals(UserContext.getRole())) {
+            Long deptId = requireDeptId();
+            if (!deptId.equals(doctor.getDepartmentId()))
+                throw BusinessException.forbidden("无权操作该医生");
+        }
+        return doctor;
     }
 }

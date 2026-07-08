@@ -112,14 +112,15 @@ const form=reactive({doctorId:null,workDate:'',timeSlot:'08:00-09:00',maxCount:3
 const weekOffset=ref(0)
 const weekLabel=computed(()=>{
   const mon=getMonday(weekOffset.value);const sun=new Date(mon);sun.setDate(sun.getDate()+6)
-  return `${mon.toISOString().slice(0,10)} ~ ${sun.toISOString().slice(0,10)}`
+  return `${fmt(mon)} ~ ${fmt(sun)}`
 })
 
+function fmt(d){const y=d.getFullYear();const m=String(d.getMonth()+1).padStart(2,'0');const dd=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${dd}`}
 function getMonday(offset){
   const t=new Date();const dow=t.getDay()||7; // 1=Mon...7=Sun
   t.setDate(t.getDate()-(dow-1)+offset*7);t.setHours(0,0,0,0);return t
 }
-function dayOfWeek(d){const n=new Date(d).getDay();return ['日','一','二','三','四','五','六'][n]}
+function dayOfWeek(d){const n=new Date(d+'T00:00:00').getDay();return ['日','一','二','三','四','五','六'][n]}
 
 const pagedScheds=computed(()=>{
   const start=(page.value-1)*pageSize
@@ -129,9 +130,8 @@ const totalPages=computed(()=>Math.max(1,Math.ceil(schedules.value.length/pageSi
 
 // Timetable computed
 const ttDays=computed(()=>{
-  const days=[];const today=new Date().toISOString().slice(0,10)
-  const mon=getMonday(weekOffset.value)
-  for(let i=0;i<7;i++){const d=new Date(mon);d.setDate(d.getDate()+i);const ds=d.toISOString().slice(0,10);days.push({date:ds,label:['一','二','三','四','五','六','日'][i],isToday:ds===today})}
+  const days=[];const today=fmt(new Date());const mon=getMonday(weekOffset.value)
+  for(let i=0;i<7;i++){const d=new Date(mon);d.setDate(d.getDate()+i);const ds=fmt(d);days.push({date:ds,label:['一','二','三','四','五','六','日'][i],isToday:ds===today})}
   return days
 })
 function getCell(slot,date){return schedules.value.find(s=>s.timeSlot===slot&&s.workDate===date)}
@@ -154,13 +154,13 @@ async function fetchScheds(){
   loading.value=true;page.value=1
   try{
     const mon=getMonday(weekOffset.value);const sun=new Date(mon);sun.setDate(sun.getDate()+6)
-    const start=mon.toISOString().slice(0,10);const end=sun.toISOString().slice(0,10)
+    const start=fmt(mon);const end=fmt(sun)
     if(selDoctor.value){
       const r=await request.get('/schedule/week',{params:{doctorId:selDoctor.value,start,end}})
       schedules.value=r.data||[]
     }else{
       const r=await request.get('/schedule/all')
-      schedules.value=r.data||[]
+      schedules.value=(r.data||[]).filter(s=>s.workDate>=start&&s.workDate<=end)
     }
   }catch{}finally{loading.value=false}
 }
@@ -168,7 +168,7 @@ async function fetchScheds(){
 async function copyLastWeek(){
   if(!selDoctor.value) return ElMessage.warning('请先选择一个医生')
   copying.value=true
-  const targetMon=getMonday(weekOffset.value).toISOString().slice(0,10)
+  const targetMon=fmt(getMonday(weekOffset.value))
   try{const r=await request.post(`/schedule/copy-last-week/${selDoctor.value}?targetMonday=${targetMon}`);ElMessage.success(`已复制 ${r.data.copied} 条排班`);fetchScheds()}
   catch{}finally{copying.value=false}
 }

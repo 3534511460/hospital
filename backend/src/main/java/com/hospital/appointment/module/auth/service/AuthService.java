@@ -9,4 +9,5 @@ public interface AuthService {
     void resetPassword(ResetPasswordRequest request);
     LoginResponse refreshToken(String refreshToken);
     void logout(Long userId);
+    String generateWsToken(Long userId);
 }

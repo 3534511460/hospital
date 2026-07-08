@@ -12,7 +12,7 @@ public interface AppointmentService {
     List<Appointment> getDoctorAppointments(Long doctorId, Integer status, LocalDate date);
     void confirmAppointment(Long appointmentId, Long doctorId);
     void completeAppointment(Long appointmentId, Long doctorId);
-    void markNoShow(Long appointmentId);
+    void markNoShow(Long appointmentId, Long doctorId);
     boolean checkNoShowBlocked(Long userId);
     Appointment getAppointmentDetail(Long appointmentId);
 }

@@ -57,4 +57,10 @@ public class AuthController {
         authService.logout(UserContext.getUserId());
         return R.ok();
     }
+
+    @GetMapping("/ws-token")
+    public R<Map<String, String>> wsToken() {
+        String wsToken = authService.generateWsToken(UserContext.getUserId());
+        return R.ok(Map.of("wsToken", wsToken));
+    }
 }

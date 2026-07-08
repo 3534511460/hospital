@@ -5,6 +5,11 @@ import com.hospital.appointment.common.exception.BusinessException;
 import com.hospital.appointment.module.appointment.mapper.DoctorScheduleMapper;
 import com.hospital.appointment.module.appointment.model.DoctorSchedule;
 import com.hospital.appointment.module.appointment.service.ScheduleService;
+import com.hospital.appointment.module.hospital.mapper.DoctorMapper;
+import com.hospital.appointment.module.hospital.model.Doctor;
+import com.hospital.appointment.module.message.service.SiteMessageService;
+import com.hospital.appointment.module.user.mapper.SysUserMapper;
+import com.hospital.appointment.module.user.model.SysUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +22,9 @@ import java.util.List;
 public class ScheduleServiceImpl implements ScheduleService {
 
     private final DoctorScheduleMapper scheduleMapper;
+    private final DoctorMapper doctorMapper;
+    private final SiteMessageService messageService;
+    private final SysUserMapper userMapper;
 
     @Override
     public List<DoctorSchedule> getAvailableSchedules(Long doctorId, LocalDate startDate, LocalDate endDate) {
@@ -51,22 +59,77 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
+    @Transactional
     public DoctorSchedule updateSchedule(DoctorSchedule schedule) {
         DoctorSchedule exist = scheduleMapper.selectById(schedule.getId());
         if (exist == null) throw BusinessException.notFound("排班不存在");
         if (exist.getBookedCount() > 0)
             throw BusinessException.badRequest("已有患者预约，无法修改");
+
+        // Reject past schedules
+        if (schedule.getStatus() != null && schedule.getStatus() == 0) {
+            LocalDate workDate = exist.getWorkDate();
+            if (workDate != null && workDate.isBefore(LocalDate.now()))
+                throw BusinessException.badRequest("已过期的排班无法申请停诊");
+        }
+
+        // Detect status change to 0 (停诊申请) — notify admins
+        if (schedule.getStatus() != null && schedule.getStatus() == 0
+                && (exist.getStatus() == null || exist.getStatus() != 0)) {
+            Doctor doc = doctorMapper.selectDetailById(exist.getDoctorId());
+            String docName = doc != null ? doc.getRealName() : "未知医生";
+            String deptName = doc != null ? doc.getDepartmentName() : "";
+            String dateInfo = exist.getWorkDate() + " " + exist.getTimeSlot();
+            String title = "停诊申请";
+            String content = docName + "（" + deptName + "）申请 " + dateInfo + " 停诊，请尽快审核处理。";
+
+            // Notify SYS_ADMIN
+            List<SysUser> admins = userMapper.selectList(
+                new LambdaQueryWrapper<SysUser>().eq(SysUser::getRole, "SYS_ADMIN"));
+            for (SysUser admin : admins) {
+                messageService.sendSystemMessage(admin.getId(), title, content);
+            }
+
+            // Notify DEPT_ADMIN of the same department
+            if (doc != null && doc.getDepartmentId() != null) {
+                List<SysUser> deptAdmins = userMapper.selectList(
+                    new LambdaQueryWrapper<SysUser>()
+                        .eq(SysUser::getRole, "DEPT_ADMIN")
+                        .eq(SysUser::getExt1, String.valueOf(doc.getDepartmentId())));
+                for (SysUser admin : deptAdmins) {
+                    messageService.sendSystemMessage(admin.getId(), title, content);
+                }
+            }
+        }
+
+        // Detect status change from 0 to 1 (approve leave) — notify doctor
+        if (schedule.getStatus() != null && schedule.getStatus() == 1
+                && exist.getStatus() != null && exist.getStatus() == 0) {
+            String dateInfo = exist.getWorkDate() + " " + exist.getTimeSlot();
+            messageService.sendSystemMessage(exist.getDoctorId(), "停诊申请已通过",
+                "您的 " + dateInfo + " 停诊申请已被管理员审核通过。");
+        }
+
         scheduleMapper.updateById(schedule);
         return schedule;
     }
 
     @Override
+    @Transactional
     public void deleteSchedule(Long id) {
         DoctorSchedule exist = scheduleMapper.selectById(id);
         if (exist == null) throw BusinessException.notFound("排班不存在");
         if (exist.getBookedCount() > 0)
             throw BusinessException.badRequest("已有患者预约，无法删除");
         scheduleMapper.deleteById(id);
+
+        // Notify doctor if their leave request was rejected
+        if (exist.getStatus() == 0) {
+            Doctor doc = doctorMapper.selectDetailById(exist.getDoctorId());
+            String dateInfo = exist.getWorkDate() + " " + exist.getTimeSlot();
+            messageService.sendSystemMessage(exist.getDoctorId(), "停诊申请已驳回",
+                "您的 " + dateInfo + " 停诊申请已被管理员驳回。");
+        }
     }
 
     @Override
@@ -129,5 +192,25 @@ public class ScheduleServiceImpl implements ScheduleService {
             }
         }
         return count;
+    }
+
+    @Override
+    public DoctorSchedule getScheduleById(Long id) {
+        DoctorSchedule s = scheduleMapper.selectById(id);
+        if (s == null) throw BusinessException.notFound("排班不存在");
+        return s;
+    }
+
+    @Override
+    public List<DoctorSchedule> getSchedulesByDepartment(Long departmentId) {
+        var doctors = doctorMapper.selectList(
+                new LambdaQueryWrapper<Doctor>().eq(Doctor::getDepartmentId, departmentId));
+        var doctorIds = doctors.stream().map(Doctor::getUserId).toList();
+        if (doctorIds.isEmpty()) return List.of();
+        return scheduleMapper.selectList(
+                new LambdaQueryWrapper<DoctorSchedule>()
+                        .in(DoctorSchedule::getDoctorId, doctorIds)
+                        .orderByDesc(DoctorSchedule::getWorkDate)
+                        .orderByAsc(DoctorSchedule::getStartTime));
     }
 }

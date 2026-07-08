@@ -1,6 +1,7 @@
 package com.hospital.appointment.module.appointment.controller;
 
 import com.hospital.appointment.common.annotation.RequireRole;
+import com.hospital.appointment.common.exception.BusinessException;
 import com.hospital.appointment.common.result.R;
 import com.hospital.appointment.module.appointment.model.QueueNumber;
 import com.hospital.appointment.module.appointment.service.QueueService;
@@ -20,7 +21,17 @@ public class QueueController {
     @GetMapping("/today")
     @RequireRole({"DOCTOR", "DEPT_ADMIN", "SYS_ADMIN"})
     public R<?> todayQueue() {
-        return R.ok(queueService.getTodayQueue(UserContext.getUserId()));
+        String role = UserContext.getRole();
+        if ("DEPT_ADMIN".equals(role)) {
+            Long deptId = UserContext.getDepartmentId();
+            if (deptId == null) return R.ok(java.util.List.of());
+            return R.ok(queueService.getDepartmentQueue(deptId));
+        }
+        if ("DOCTOR".equals(role)) {
+            return R.ok(queueService.getTodayQueue(UserContext.getUserId()));
+        }
+        // SYS_ADMIN: no personal queue; use /doctor/{id}/today or /queue/board
+        return R.ok(java.util.List.of());
     }
 
     @GetMapping("/doctor/{doctorId}/today")
@@ -34,7 +45,7 @@ public class QueueController {
     }
 
     @PostMapping("/call-next")
-    @RequireRole({"DOCTOR", "DEPT_ADMIN"})
+    @RequireRole("DOCTOR")
     public R<QueueNumber> callNext() {
         return R.ok(queueService.callNext(UserContext.getUserId()));
     }

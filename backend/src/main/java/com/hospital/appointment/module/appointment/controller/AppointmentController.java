@@ -2,6 +2,7 @@ package com.hospital.appointment.module.appointment.controller;
 
 import com.hospital.appointment.common.annotation.Log;
 import com.hospital.appointment.common.annotation.RequireRole;
+import com.hospital.appointment.common.exception.BusinessException;
 import com.hospital.appointment.common.result.R;
 import com.hospital.appointment.module.appointment.model.Appointment;
 import com.hospital.appointment.module.appointment.service.AppointmentService;
@@ -68,7 +69,7 @@ public class AppointmentController {
     @PutMapping("/{id}/noshow")
     @RequireRole("DOCTOR")
     public R<Void> noShow(@PathVariable Long id) {
-        appointmentService.markNoShow(id);
+        appointmentService.markNoShow(id, UserContext.getUserId());
         return R.okMsg("已标记爽约");
     }
 
@@ -80,7 +81,19 @@ public class AppointmentController {
 
     @GetMapping("/{id}")
     public R<Appointment> detail(@PathVariable Long id) {
-        return R.ok(appointmentService.getAppointmentDetail(id));
+        Appointment a = appointmentService.getAppointmentDetail(id);
+        String role = UserContext.getRole();
+        Long userId = UserContext.getUserId();
+        if ("PATIENT".equals(role) && !a.getPatientId().equals(userId))
+            throw BusinessException.forbidden("无权查看他人预约");
+        if ("DOCTOR".equals(role) && !a.getDoctorId().equals(userId))
+            throw BusinessException.forbidden("无权查看其他医生的预约");
+        if ("DEPT_ADMIN".equals(role)) {
+            Long deptId = UserContext.getDepartmentId();
+            if (deptId == null || !deptId.equals(a.getDepartmentId()))
+                throw BusinessException.forbidden("无权查看其他科室的预约");
+        }
+        return R.ok(a);
     }
 
     private Long toLong(Object obj) {

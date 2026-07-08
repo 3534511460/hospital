@@ -4,22 +4,28 @@ import com.hospital.appointment.common.exception.BusinessException;
 import com.hospital.appointment.module.appointment.mapper.AppointmentMapper;
 import com.hospital.appointment.module.appointment.mapper.DoctorScheduleMapper;
 import com.hospital.appointment.module.appointment.mapper.NoShowRecordMapper;
+import com.hospital.appointment.module.appointment.mapper.QueueNumberMapper;
 import com.hospital.appointment.module.appointment.model.Appointment;
 import com.hospital.appointment.module.appointment.model.DoctorSchedule;
 import com.hospital.appointment.module.appointment.model.NoShowRecord;
+import com.hospital.appointment.module.appointment.model.QueueNumber;
 import com.hospital.appointment.module.appointment.service.AppointmentService;
 import com.hospital.appointment.module.appointment.service.QueueService;
 import com.hospital.appointment.module.hospital.mapper.DoctorMapper;
 import com.hospital.appointment.module.hospital.model.Doctor;
+import com.hospital.appointment.module.message.service.SiteMessageService;
+import com.hospital.appointment.module.user.mapper.SysUserMapper;
+import com.hospital.appointment.module.user.model.SysUser;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -31,6 +37,9 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final NoShowRecordMapper noShowRecordMapper;
     private final DoctorMapper doctorMapper;
     private final QueueService queueService;
+    private final QueueNumberMapper queueNumberMapper;
+    private final SiteMessageService messageService;
+    private final SysUserMapper userMapper;
 
     @Override
     @Transactional
@@ -41,20 +50,17 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         DoctorSchedule schedule = scheduleMapper.selectById(scheduleId);
         if (schedule == null) throw BusinessException.notFound("排班不存在");
-        if (schedule.getBookedCount() >= schedule.getMaxCount())
-            throw BusinessException.badRequest("该时段号源已满");
-        if (schedule.getWorkDate().isBefore(LocalDate.now()))
-            throw BusinessException.badRequest("不能预约过去的日期");
+        if (!schedule.getDoctorId().equals(doctorId))
+            throw BusinessException.badRequest("排班不属于该医生");
 
-        schedule.setBookedCount(schedule.getBookedCount() + 1);
-        if (schedule.getBookedCount() >= schedule.getMaxCount()) schedule.setStatus(2);
-        scheduleMapper.updateById(schedule);
+        int updated = scheduleMapper.incrementBookedCount(scheduleId);
+        if (updated == 0) throw BusinessException.badRequest("该时段号源已满或不可预约");
 
         Doctor doctor = doctorMapper.selectDetailById(doctorId);
 
         Appointment appointment = new Appointment();
         appointment.setAppointmentNo("APT" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
-                + String.format("%06d", (int) (Math.random() * 999999)));
+                + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase());
         appointment.setPatientId(patientId);
         appointment.setDoctorId(doctorId);
         appointment.setScheduleId(scheduleId);
@@ -68,6 +74,14 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointmentMapper.insert(appointment);
         queueService.addToQueue(appointment.getId(), doctorId);
         log.info("预约成功: {} 患者={} 医生={}", appointment.getAppointmentNo(), patientId, doctorId);
+
+        // Notify doctor of new appointment
+        SysUser patient = userMapper.selectById(patientId);
+        String pName = patient != null ? patient.getRealName() : "患者";
+        String dateInfo = schedule.getWorkDate() + " " + schedule.getTimeSlot();
+        messageService.sendSystemMessage(doctorId, "新预约通知",
+            pName + " 已预约您的 " + dateInfo + " 门诊，请留意。");
+
         return appointment;
     }
 
@@ -78,21 +92,22 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (appointment == null) throw BusinessException.notFound("预约不存在");
         if (!appointment.getPatientId().equals(userId))
             throw BusinessException.forbidden("无权取消他人预约");
-        if (appointment.getStatus() != 1)
-            throw BusinessException.badRequest("当前状态不可取消");
-        if (appointment.getAppointmentDate().minusDays(1).isBefore(LocalDate.now()))
-            throw BusinessException.badRequest("就诊前24小时内不可取消");
 
-        appointment.setStatus(3);
-        appointment.setCancelTime(LocalDateTime.now());
-        appointmentMapper.updateById(appointment);
+        int updated = appointmentMapper.cancelAppointmentAtomic(appointmentId);
+        if (updated == 0)
+            throw BusinessException.badRequest("当前状态不可取消或已超过取消时限");
 
-        DoctorSchedule schedule = scheduleMapper.selectById(appointment.getScheduleId());
-        if (schedule != null && schedule.getBookedCount() > 0) {
-            schedule.setBookedCount(schedule.getBookedCount() - 1);
-            if (schedule.getStatus() == 2) schedule.setStatus(1);
-            scheduleMapper.updateById(schedule);
-        }
+        scheduleMapper.decrementBookedCount(appointment.getScheduleId());
+
+        var qns = queueNumberMapper.selectList(
+                new LambdaQueryWrapper<QueueNumber>().eq(QueueNumber::getAppointmentId, appointmentId));
+        for (var qn : qns) queueNumberMapper.deleteById(qn.getId());
+
+        SysUser patient = userMapper.selectById(userId);
+        String pName = patient != null ? patient.getRealName() : "患者";
+        String dateInfo = appointment.getAppointmentDate() + " " + appointment.getTimeSlot();
+        messageService.sendSystemMessage(appointment.getDoctorId(), "预约取消",
+            pName + " 已取消 " + dateInfo + " 的预约。");
     }
 
     @Override
@@ -128,9 +143,8 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Override
     @Transactional
-    public void markNoShow(Long appointmentId) {
-        Appointment a = appointmentMapper.selectById(appointmentId);
-        if (a == null) throw BusinessException.notFound("预约不存在");
+    public void markNoShow(Long appointmentId, Long doctorId) {
+        Appointment a = validateOwnership(appointmentId, doctorId);
         if (a.getStatus() != 1) throw BusinessException.badRequest("当前状态不能标记爽约");
         a.setStatus(4);
         appointmentMapper.updateById(a);

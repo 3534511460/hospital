@@ -56,6 +56,8 @@ logging:
     org.springframework.web: info
 
 app:
+  cors:
+    allowed-origins: http://localhost:5173,http://localhost:3000
   jwt:
     secret: hospital-appointment-system-jwt-secret-key-2026-prod
     access-token-expiration: 3600000

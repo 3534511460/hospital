@@ -1,5 +1,7 @@
 package com.hospital.appointment.security;
 
+import com.hospital.appointment.module.user.mapper.SysUserMapper;
+import com.hospital.appointment.module.user.model.SysUser;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,6 +29,7 @@ public class TokenFilter implements Filter {
             "/api/v1/hospital/departments",
             "/api/v1/hospital/doctors/**",
             "/api/v1/hospital-info/public",
+            "/api/v1/admin/hospital-info/public",
             "/api/v1/file/download/**",
             "/ws/**",
             "/static/**",
@@ -35,9 +38,11 @@ public class TokenFilter implements Filter {
     );
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final SysUserMapper sysUserMapper;
 
-    public TokenFilter(JwtTokenProvider jwtTokenProvider) {
+    public TokenFilter(JwtTokenProvider jwtTokenProvider, SysUserMapper sysUserMapper) {
         this.jwtTokenProvider = jwtTokenProvider;
+        this.sysUserMapper = sysUserMapper;
     }
 
     @Override
@@ -65,6 +70,13 @@ public class TokenFilter implements Filter {
         UserContext.setRole(jwtTokenProvider.getRole(token));
         UserContext.setToken(token);
 
+        if ("DEPT_ADMIN".equals(UserContext.getRole())) {
+            SysUser adminUser = sysUserMapper.selectById(UserContext.getUserId());
+            if (adminUser != null && adminUser.getExt1() != null) {
+                try { UserContext.setDepartmentId(Long.valueOf(adminUser.getExt1())); } catch (NumberFormatException ignored) {}
+            }
+        }
+
         try {
             chain.doFilter(req, res);
         } finally {
@@ -81,10 +93,6 @@ public class TokenFilter implements Filter {
         if (bearer != null && bearer.startsWith("Bearer ")) {
             return bearer.substring(7);
         }
-        String token = request.getHeader("token");
-        if (token != null) {
-            return token;
-        }
-        return request.getParameter("token");
+        return request.getHeader("token");
     }
 }

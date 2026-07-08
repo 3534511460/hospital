@@ -10,11 +10,12 @@ import java.util.List;
 @Mapper
 public interface QueueNumberMapper extends BaseMapper<QueueNumber> {
 
-    @Select("SELECT q.*, u.real_name AS patient_name, a.time_slot " +
+    @Select("SELECT q.*, u.real_name AS patient_name, a.time_slot, du.real_name AS doctor_name " +
             "FROM queue_number q " +
             "LEFT JOIN appointment a ON q.appointment_id = a.id " +
             "LEFT JOIN sys_user u ON a.patient_id = u.id " +
-            "WHERE q.doctor_id = #{doctorId} AND a.appointment_date = CURDATE() " +
+            "LEFT JOIN sys_user du ON q.doctor_id = du.id " +
+            "WHERE q.doctor_id = #{doctorId} AND a.appointment_date = CURDATE() AND q.status != 3" +
             "ORDER BY q.queue_number ASC")
     List<QueueNumber> findTodayQueue(@Param("doctorId") Long doctorId);
 

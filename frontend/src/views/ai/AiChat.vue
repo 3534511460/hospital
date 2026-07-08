@@ -54,6 +54,7 @@
 
 <script setup>
 import { ref,computed,nextTick,onMounted } from 'vue'
+import DOMPurify from 'dompurify'
 import request from '../../utils/request'
 
 const input=ref(''),messages=ref([]),streaming=ref(false),streamText=ref(''),msgBox=ref(null)
@@ -92,7 +93,7 @@ async function loadHistory(sid){
   await scrollBottom()}catch{}
 }
 function startNewChat(){sessionId.value='sess_'+Date.now();messages.value=[]}
-function renderMarkdown(t){return t.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>').replace(/【(.+?)】/g,'<em class="note">【$1】</em>')}
+function renderMarkdown(t){const html=t.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>').replace(/【(.+?)】/g,'<em class="note">【$1】</em>');return DOMPurify.sanitize(html)}
 async function scrollBottom(){await nextTick();if(msgBox.value) msgBox.value.scrollTop=msgBox.value.scrollHeight}
 onMounted(fetchHistory)
 </script>

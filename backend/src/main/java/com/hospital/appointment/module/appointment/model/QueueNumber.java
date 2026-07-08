@@ -23,4 +23,6 @@ public class QueueNumber {
     private String patientName;
     @TableField(exist = false)
     private String timeSlot;
+    @TableField(exist = false)
+    private String doctorName;
 }
