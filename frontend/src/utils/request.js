@@ -1,10 +1,23 @@
 import axios from 'axios'
 import { ElMessage, ElNotification } from 'element-plus'
+import router from '../router'
+
+let isRedirecting = false
 
 const request = axios.create({
   baseURL: '/api/v1',
   timeout: 15000
 })
+
+function handleAuthError() {
+  localStorage.removeItem('token')
+  localStorage.removeItem('refreshToken')
+  localStorage.removeItem('user')
+  if (!isRedirecting) {
+    isRedirecting = true
+    router.push('/login').finally(() => { isRedirecting = false })
+  }
+}
 
 request.interceptors.request.use(
   config => {
@@ -24,10 +37,7 @@ request.interceptors.response.use(
       return res
     }
     if (res.code === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('refreshToken')
-      localStorage.removeItem('user')
-      window.location.href = '/login'
+      handleAuthError()
       return Promise.reject(new Error(res.msg || '认证失败'))
     }
     ElMessage.error(res.msg || '请求失败')
@@ -37,8 +47,7 @@ request.interceptors.response.use(
     if (error.response) {
       const { status, data } = error.response
       if (status === 401) {
-        localStorage.clear()
-        window.location.href = '/login'
+        handleAuthError()
       } else if (status === 403) {
         ElMessage.error(data?.msg || '没有操作权限')
       } else if (status === 400) {
