@@ -39,6 +39,11 @@ public class QueueController {
         return R.ok(queueService.getTodayQueue(doctorId));
     }
 
+    @GetMapping("/board/today")
+    public R<?> boardQueue() {
+        return R.ok(queueService.getAllTodayQueue());
+    }
+
     @GetMapping("/doctor/{doctorId}/current")
     public R<Map<String, Integer>> currentNumber(@PathVariable Long doctorId) {
         return R.ok(Map.of("currentNumber", queueService.getCurrentQueueNumber(doctorId)));

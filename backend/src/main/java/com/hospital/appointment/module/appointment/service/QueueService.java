@@ -28,6 +28,10 @@ public class QueueService {
         return queueNumberMapper.findTodayQueue(doctorId);
     }
 
+    public List<QueueNumber> getAllTodayQueue() {
+        return queueNumberMapper.findAllTodayQueue();
+    }
+
     public List<QueueNumber> getDepartmentQueue(Long departmentId) {
         var doctors = doctorMapper.selectList(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Doctor>()
@@ -110,15 +114,8 @@ public class QueueService {
         return qn;
     }
 
-    public QueueNumber addToQueue(Long appointmentId, Long doctorId) {
-        int max = queueNumberMapper.maxQueueNumber(doctorId);
-        QueueNumber qn = new QueueNumber();
-        qn.setAppointmentId(appointmentId);
-        qn.setDoctorId(doctorId);
-        qn.setQueueNumber(max + 1);
-        qn.setStatus(0);
-        queueNumberMapper.insert(qn);
-        return qn;
+    public void addToQueue(Long appointmentId, Long doctorId, java.time.LocalDate workDate) {
+        queueNumberMapper.insertWithNextNumber(appointmentId, doctorId, workDate);
     }
 
     private QueueNumber findOrThrow(Long appointmentId) {

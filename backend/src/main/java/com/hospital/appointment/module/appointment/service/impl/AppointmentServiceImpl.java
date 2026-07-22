@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
@@ -53,6 +54,13 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (!schedule.getDoctorId().equals(doctorId))
             throw BusinessException.badRequest("排班不属于该医生");
 
+        LocalDate today = LocalDate.now();
+        boolean pastDate = schedule.getWorkDate().isBefore(today);
+        boolean pastSlotToday = schedule.getWorkDate().isEqual(today)
+                && schedule.getEndTime() != null && schedule.getEndTime().isBefore(LocalTime.now());
+        if (pastDate || pastSlotToday)
+            throw BusinessException.badRequest("该时段已过，无法预约");
+
         int updated = scheduleMapper.incrementBookedCount(scheduleId);
         if (updated == 0) throw BusinessException.badRequest("该时段号源已满或不可预约");
 
@@ -72,7 +80,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setStatus(1);
         appointment.setFee(doctor != null ? doctor.getConsultationFee() : null);
         appointmentMapper.insert(appointment);
-        queueService.addToQueue(appointment.getId(), doctorId);
+        queueService.addToQueue(appointment.getId(), doctorId, schedule.getWorkDate());
         log.info("预约成功: {} 患者={} 医生={}", appointment.getAppointmentNo(), patientId, doctorId);
 
         // Notify doctor of new appointment

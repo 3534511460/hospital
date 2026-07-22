@@ -2,10 +2,10 @@
   <div class="layout">
     <header class="top-nav">
       <div class="nav-inner page-w">
-        <a class="logo" @click="$router.push('/home')">
-          <span class="logo-icon">+</span>
-          <span class="logo-text">医预约</span>
-        </a>
+        <button class="logo" aria-label="返回首页" @click="$router.push('/home')">
+          <span class="logo-icon" aria-hidden="true"><i></i><i></i></span>
+          <span class="logo-text">医预约<small>MEDRESERVE</small></span>
+        </button>
         <nav class="nav-links" v-if="isLoggedIn">
           <a :class="{ active:$route.path==='/home' }" @click="$router.push('/home')">首页</a>
           <a v-if="userRole!=='DOCTOR'" :class="{ active:$route.path==='/doctors' }" @click="$router.push('/doctors')">找医生</a>
@@ -19,9 +19,11 @@
           <a v-if="userRole==='SYS_ADMIN'" :class="{ active:$route.path.startsWith('/admin') }" @click="$router.push('/admin')" style="color:var(--primary)">管理</a>
         </nav>
         <div class="nav-right">
-          <a class="theme-btn" @click="toggleTheme" :title="dark?'亮色':'暗色'">{{ dark ? '☀' : '☾' }}</a>
+          <button class="icon-btn theme-btn" @click="toggleTheme" :title="dark?'切换亮色模式':'切换暗色模式'">
+            <el-icon><Sunny v-if="dark"/><Moon v-else/></el-icon>
+          </button>
           <div class="msg-bell" v-if="isLoggedIn" @click.stop="bellOpen=!bellOpen;if(bellOpen)loadBell()" title="消息中心">
-            <span style="font-size:16px">🔔</span>
+            <button class="icon-btn" aria-label="消息中心"><el-icon><Bell /></el-icon></button>
             <span class="nav-badge msg-badge" v-if="unreadMsgCount>0">{{ unreadMsgCount>99?'99+':unreadMsgCount }}</span>
             <div class="bell-panel" v-if="bellOpen" @click.stop>
               <div class="bell-head">
@@ -71,13 +73,13 @@
             <a class="btn btn-outline btn-sm" @click="$router.push('/login')">登录</a>
             <a class="btn btn-primary btn-sm" @click="$router.push('/register')">注册</a>
           </template>
-          <a class="burger" @click="drawer=true" v-if="isLoggedIn"><span/><span/><span/></a>
+          <button class="icon-btn burger" aria-label="打开导航" @click="drawer=true" v-if="isLoggedIn"><el-icon><Menu /></el-icon></button>
         </div>
       </div>
     </header>
     <div class="drawer-bg" v-if="drawer" @click="drawer=false"/>
     <aside class="drawer" :class="{open:drawer}">
-      <a class="drawer-close" @click="drawer=false">&times;</a>
+      <button class="icon-btn drawer-close" aria-label="关闭导航" @click="drawer=false"><el-icon><Close /></el-icon></button>
       <nav><a @click="go('/home');drawer=false">首页</a><a v-if="userRole!=='DOCTOR'" @click="go('/doctors');drawer=false">找医生</a><a v-if="userRole==='PATIENT'" @click="go('/my-appointments');drawer=false">我的预约</a><a v-if="userRole==='PATIENT'" @click="go('/my-records');drawer=false">我的病历</a><a v-if="userRole!=='DOCTOR'" @click="go('/ai');drawer=false">AI导诊</a><a v-if="userRole==='DOCTOR'" @click="go('/schedule');drawer=false">排班</a><a v-if="userRole==='DOCTOR'||userRole==='DEPT_ADMIN'" @click="go('/queue');drawer=false">叫号</a><a @click="go('/chat');drawer=false" style="position:relative">{{ userRole==='DOCTOR'?'患者咨询':'问医生' }}<span class="nav-badge" v-if="unreadChatCount>0">{{ unreadChatCount>99?'99+':unreadChatCount }}</span></a><hr><a v-if="userRole==='SYS_ADMIN'" @click="go('/admin');drawer=false">系统管理</a><a @click="go('/profile');drawer=false">个人中心</a><a @click="logout">退出</a></nav>
     </aside>
     <main class="page-main"><router-view v-slot="{ Component }"><transition name="page-fade" mode="out-in"><component :is="Component"/></transition></router-view></main>
@@ -138,53 +140,59 @@ onUnmounted(()=>{document.removeEventListener('click',clk);clearInterval(chatTim
 </script>
 
 <style scoped>
-.top-nav { position:sticky;top:0;z-index:100;height:var(--nav-h);background:var(--surface);border-bottom:1px solid var(--border-light);display:flex;align-items:center; }
-.nav-inner { display:flex;align-items:center;justify-content:space-between;width:100%; }
-.logo { display:flex;align-items:center;gap:6px;cursor:pointer; }
-.logo-icon { width:28px;height:28px;border-radius:6px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700; }
-.logo-text { font-size:17px;font-weight:600;color:var(--title);letter-spacing:.02em; }
-.nav-links { display:flex;gap:32px; }
-.nav-links a { font-size:14px;color:var(--body);cursor:pointer;padding:4px 0;border-bottom:2px solid transparent;transition:all .15s; }
-.nav-links a:hover,.nav-links a.active { color:var(--primary);border-color:var(--primary); }
-.nav-right { display:flex;align-items:center;gap:12px; }
-.theme-btn { font-size:16px;cursor:pointer;padding:4px;user-select:none; }
-.user-dd { position:relative;display:flex;align-items:center;gap:8px;cursor:pointer; }
-.user-name { font-size:13px;color:var(--body);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
-.avatar-sm { width:30px;height:30px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600; }
-.dd-panel { position:absolute;top:40px;right:0;min-width:140px;background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-md);border:1px solid var(--border);padding:6px 0;z-index:10; }
-.dd-panel a { display:block;padding:8px 16px;font-size:13px;color:var(--body);cursor:pointer;transition:background .1s; }
-.dd-panel a:hover { background:var(--bg); }
-.dd-panel hr { border:none;border-top:1px solid var(--border-light);margin:4px 0; }
-.burger { display:none;flex-direction:column;gap:4px;cursor:pointer; }
-.burger span { width:18px;height:2px;background:var(--body);border-radius:1px; }
-.drawer-bg { position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200; }
-.drawer { position:fixed;top:0;right:0;width:280px;height:100vh;z-index:201;background:var(--surface);padding:24px;transform:translateX(100%);transition:transform .25s ease; }
-.drawer.open { transform:translateX(0); }
-.drawer-close { font-size:22px;cursor:pointer;display:block;text-align:right;margin-bottom:24px;color:var(--body); }
-.drawer nav a { display:block;padding:12px 0;font-size:15px;color:var(--body);cursor:pointer;border-bottom:1px solid var(--border-light); }
-.drawer nav hr { margin:12px 0;border:none;border-top:1px solid var(--border); }
-.nav-badge { position:absolute;top:-8px;right:-18px;background:var(--error,#f56c6c);color:#fff;font-size:10px;min-width:16px;height:16px;line-height:16px;text-align:center;border-radius:8px;padding:0 4px; }
-.msg-bell { position:relative;cursor:pointer;display:flex;align-items:center; }
-.msg-badge { top:-6px;right:-10px; }
-.bell-panel { position:absolute;top:38px;right:-12px;width:360px;max-height:420px;background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-md);border:1px solid var(--border);z-index:110;overflow:hidden; }
-.bell-head { display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border-light); }
-.bell-head span { font-size:14px;font-weight:600;color:var(--title); }
-.bell-head a { font-size:12px;color:var(--primary);cursor:pointer; }
-.bell-body { max-height:340px;overflow-y:auto;padding:8px 0; }
-.bell-section-title { font-size:11px;color:var(--warn);padding:6px 16px 4px;font-weight:500; }
-.bell-leave-item { display:flex;justify-content:space-between;align-items:center;padding:8px 16px;transition:background .1s; }
-.bell-leave-item:hover { background:var(--bg); }
-.bell-leave-info { display:flex;flex-direction:column;gap:2px; }
-.bell-leave-doc { font-size:13px;color:var(--title);font-weight:500; }
-.bell-leave-date { font-size:11px;color:var(--caption); }
-.bell-leave-acts { display:flex;gap:6px; }
-.bell-divider { height:1px;background:var(--border-light);margin:4px 12px; }
-.bell-msg-item { display:flex;align-items:flex-start;gap:8px;padding:8px 16px;cursor:pointer;transition:background .1s; }
-.bell-msg-item:hover { background:var(--bg); }
-.bell-msg-dot { width:6px;height:6px;border-radius:50%;background:var(--primary);margin-top:7px;flex-shrink:0; }
-.bell-msg-c { flex:1;min-width:0; }
-.bell-msg-title { font-size:13px;color:var(--title);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-.bell-msg-content { font-size:11px;color:var(--caption);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-.bell-empty { padding:24px;text-align:center;font-size:13px;color:var(--caption); }
-@media(max-width:768px){ .nav-links{display:none}.burger{display:flex} }
+.top-nav { position: sticky; top: 0; z-index: 100; height: var(--nav-h); display: flex; align-items: center; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(16px); }
+.nav-inner { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 28px; }
+.logo { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 0; border: 0; background: none; font: inherit; cursor: pointer; }
+.logo-icon { position: relative; width: 30px; height: 30px; background: var(--primary); }
+.logo-icon i { position: absolute; left: 6px; top: 13px; width: 18px; height: 4px; background: #fff; }
+.logo-icon i:last-child { left: 13px; top: 6px; width: 4px; height: 18px; }
+.logo-text { color: var(--title); font-size: 16px; font-weight: 700; line-height: 1.05; letter-spacing: 0; text-align: left; }
+.logo-text small { display: block; margin-top: 4px; color: var(--caption); font-size: 7px; font-weight: 600; letter-spacing: 0; }
+.nav-links { min-width: 0; display: flex; align-self: stretch; align-items: center; justify-content: center; gap: 24px; }
+.nav-links a { position: relative; height: 100%; display: flex; align-items: center; color: var(--body); font-size: 13px; cursor: pointer; white-space: nowrap; transition: color .18s ease; }
+.nav-links a::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--primary); transform: scaleX(0); transition: transform .2s ease; }
+.nav-links a:hover, .nav-links a.active { color: var(--primary); }
+.nav-links a.active::after { transform: scaleX(1); }
+.nav-right { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+.icon-btn { width: 36px; height: 36px; display: inline-grid; place-items: center; border: 0; color: var(--body); background: transparent; font-size: 17px; cursor: pointer; transition: color .18s ease, background .18s ease; }
+.icon-btn:hover { color: var(--primary); background: var(--primary-light); }
+.user-dd { position: relative; display: flex; align-items: center; gap: 9px; margin-left: 4px; cursor: pointer; }
+.user-name { max-width: 76px; overflow: hidden; color: var(--body); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.avatar-sm { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--border)); border-radius: 50%; color: var(--primary); background: var(--primary-light); font-size: 13px; font-weight: 700; }
+.dd-panel { position: absolute; top: 44px; right: 0; min-width: 150px; padding: 6px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-md); z-index: 10; }
+.dd-panel a { display: block; padding: 9px 11px; border-radius: 4px; color: var(--body); font-size: 13px; cursor: pointer; }
+.dd-panel a:hover { color: var(--primary); background: var(--primary-light); }
+.dd-panel hr { margin: 5px 0; border: 0; border-top: 1px solid var(--border-light); }
+.burger { display: none; }
+.drawer-bg { position: fixed; inset: 0; z-index: 200; background: rgba(14, 25, 19, .45); backdrop-filter: blur(2px); }
+.drawer { position: fixed; top: 0; right: 0; z-index: 201; width: min(320px, 86vw); height: 100vh; padding: 22px; border-left: 1px solid var(--border); background: var(--surface); transform: translateX(100%); transition: transform .25s ease; }
+.drawer.open { transform: translateX(0); }
+.drawer-close { margin: 0 0 24px auto; }
+.drawer nav a { display: block; padding: 13px 8px; border-bottom: 1px solid var(--border-light); color: var(--body); font-size: 14px; cursor: pointer; }
+.drawer nav hr { margin: 12px 0; border: 0; border-top: 1px solid var(--border); }
+.nav-badge { position: absolute; top: 10px; right: -15px; min-width: 16px; height: 16px; padding: 0 4px; border: 2px solid var(--surface); border-radius: 9px; background: var(--error); color: #fff; font-size: 9px; line-height: 12px; text-align: center; }
+.msg-bell { position: relative; display: flex; align-items: center; cursor: pointer; }
+.msg-badge { top: -2px; right: -3px; }
+.bell-panel { position: absolute; top: 44px; right: -12px; z-index: 110; width: min(370px, calc(100vw - 28px)); max-height: 430px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-lg); }
+.bell-head { display: flex; justify-content: space-between; align-items: center; padding: 15px 17px; border-bottom: 1px solid var(--border-light); }
+.bell-head span { color: var(--title); font-size: 14px; font-weight: 650; }
+.bell-head a { color: var(--primary); font-size: 12px; cursor: pointer; }
+.bell-body { max-height: 350px; overflow-y: auto; padding: 8px 0; }
+.bell-section-title { padding: 7px 17px 4px; color: var(--warn); font-size: 11px; font-weight: 600; }
+.bell-leave-item { display: flex; justify-content: space-between; align-items: center; padding: 9px 17px; }
+.bell-leave-item:hover, .bell-msg-item:hover { background: var(--bg); }
+.bell-leave-info { display: flex; flex-direction: column; gap: 2px; }
+.bell-leave-doc { color: var(--title); font-size: 13px; font-weight: 600; }
+.bell-leave-date, .bell-msg-content { color: var(--caption); font-size: 11px; }
+.bell-leave-acts { display: flex; gap: 6px; }
+.bell-divider { height: 1px; margin: 4px 12px; background: var(--border-light); }
+.bell-msg-item { display: flex; align-items: flex-start; gap: 9px; padding: 9px 17px; cursor: pointer; }
+.bell-msg-dot { flex: 0 0 auto; width: 6px; height: 6px; margin-top: 7px; border-radius: 50%; background: var(--primary); }
+.bell-msg-c { flex: 1; min-width: 0; }
+.bell-msg-title, .bell-msg-content { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bell-msg-title { color: var(--title); font-size: 13px; }
+.bell-empty { padding: 30px; color: var(--caption); font-size: 13px; text-align: center; }
+@media (max-width: 1080px) { .nav-links { gap: 16px; } .nav-links a:nth-child(4) { display: none; } }
+@media (max-width: 820px) { .nav-links { display: none; } .user-name { display: none; } .burger { display: inline-grid; } }
+@media (max-width: 480px) { .logo-text small { display: none; } .nav-right { gap: 2px; } }
 </style>

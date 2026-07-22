@@ -46,17 +46,22 @@ function getDeptDoctors(deptId){return allQueues.value.filter(d=>d.departmentId=
 async function fetch(){
   loading.value=true
   try{
-    const dr=await request.get('/hospital/departments');departments.value=dr.data||[]
-    const rr=await request.get('/hospital/doctors',{params:{page:1,size:100}})
+    const [dr,rr,qr]=await Promise.all([
+      request.get('/hospital/departments'),
+      request.get('/hospital/doctors',{params:{page:1,size:100}}),
+      request.get('/queue/board/today')
+    ])
+    departments.value=dr.data||[]
     const docs=(rr.data&&rr.data.records)||rr.data||[]
-    const result=[]
-    for(const d of docs.filter(d=>d.status===1)){
-      try{
-        const qr=await request.get(`/queue/doctor/${d.userId}/today`)
-        result.push({doctorId:d.userId,doctorName:d.realName,title:d.title,departmentId:d.departmentId,departmentName:d.departmentName,queue:qr.data||[]})
-      }catch{result.push({doctorId:d.userId,doctorName:d.realName,title:d.title,departmentId:d.departmentId,departmentName:d.departmentName,queue:[]})}
-    }
-    allQueues.value=result
+    const queues=qr.data||[]
+    allQueues.value=docs.filter(d=>d.status===1).map(d=>({
+      doctorId:d.userId,
+      doctorName:d.realName,
+      title:d.title,
+      departmentId:d.departmentId,
+      departmentName:d.departmentName,
+      queue:queues.filter(q=>q.doctorId===d.userId)
+    }))
   }catch{}finally{loading.value=false}
 }
 

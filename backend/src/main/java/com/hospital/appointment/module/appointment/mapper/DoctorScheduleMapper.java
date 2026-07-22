@@ -20,6 +20,7 @@ public interface DoctorScheduleMapper extends BaseMapper<DoctorSchedule> {
             "LEFT JOIN department d ON dc.department_id = d.id " +
             "WHERE ds.doctor_id = #{doctorId} AND ds.work_date BETWEEN #{startDate} AND #{endDate} " +
             "AND ds.status = 1 AND ds.booked_count < ds.max_count " +
+            "AND (ds.work_date > CURDATE() OR ds.end_time IS NULL OR ds.end_time > CURTIME()) " +
             "ORDER BY ds.work_date, ds.start_time")
     List<DoctorSchedule> getAvailableSchedules(@Param("doctorId") Long doctorId,
                                                 @Param("startDate") LocalDate startDate,
